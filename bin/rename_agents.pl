@@ -127,8 +127,9 @@ use Exception::Class;
         my $new_name = $spy_name;
         if ($opts{all} or $spy_name =~ /agent/i or
             lc(substr($spy_name,0,1)) ne lc($anames->{$pname}->{init})) {
-          $new_name =
-             splice(@{$anames->{$pname}->{name}}, rand(@{$anames->{$pname}->{name}}), 1);
+#          $new_name =
+#             splice(@{$anames->{$pname}->{name}}, rand(@{$anames->{$pname}->{name}}), 1);
+          $new_name = shift(@{$anames->{$pname}->{name}});
           if (!$new_name or length($new_name) < 3) {
             $new_name = "Agent ".$anames->{$pname}->{init}.$spy_id;
           }
