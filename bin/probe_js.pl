@@ -43,22 +43,33 @@ GetOptions(
   my $data = $glc->empire->view_species_stats();
 
 # Get planets
-  my $planets = $data->{status}->{empire}->{planets};
   my $ename   = $data->{status}->{empire}->{name};
   my $ststr   = $data->{status}->{server}->{time};
   my $stime   = str2time( map { s!^(\d+)\s+(\d+)\s+!$2/$1/!; $_ } $ststr);
   my $ttime   = ctime($stime);
   print "$ttime\n";
+  my $empire = $data->{status}->{empire};
+
+  my %planets = map { $empire->{planets}{$_}, $_ } keys %{$empire->{planets}};
 
 print Dumper $planets;
 # Get obervatories;
   my @observatories;
-  for my $pid (keys %$planets) {
-    next if $skip and $planets->{$pid} eq $skip;
+  for my $pname (sort keys %planets) {
+    next if $pname =~ /Station/;
+    next if $skip and $pname eq $skip;
 # Wrappper Needed
-    print "Finding observatory on $planets->{$pid}.\n";
-    my $buildings = $glc->body(id => $pid)->get_buildings()->{buildings};
+    my $ok;
+    my $buildings;
+    while (1) {
+      $ok = eval {
+        $buildings = $glc->body(id => $planets{$pname})->get_buildings()->{buildings};
+      };
+      last if $ok;
+      sleep 60;
+    }
     push @observatories, grep { $buildings->{$_}->{url} eq '/observatory' } keys %$buildings;
+    sleep 2;
   }
 
 # Find stars
