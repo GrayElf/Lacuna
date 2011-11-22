@@ -1,8 +1,8 @@
 #!/usr/bin/perl
 #
-# Script to parse thru the probe data
+# Script to parse the building list, and record the shipyards.
 #
-# Usage: perl parse_probe.pl probe_file
+# Usage: perl get_shipyards.pl --input data_builds.js
 #  
 use strict;
 use warnings;
@@ -13,13 +13,15 @@ use utf8;
 
 my $bld_file = "data/data_builds.js";
 my $help = 0;
+my $reserve = 5;
 
 GetOptions(
   'help' => \$help,
   'input=s' => \$bld_file,
+  'reserve=i' => \$reserve,
 );
   if ($help) {
-    print "parse_building.pl --input input\n";
+    print "$0 --input <input.js> --reserve <n>\n";
     exit;
   }
   
@@ -41,7 +43,7 @@ GetOptions(
         delete $bld_data->{"$planet"}->{"$bldid"}->{pending_build} if ($bld_data->{"$planet"}->{"$bldid"}->{pending_build});
         $bld_data->{"$planet"}->{"$bldid"}->{maxq} =
           $bld_data->{"$planet"}->{"$bldid"}->{level} - 2;
-        $bld_data->{"$planet"}->{"$bldid"}->{reserve} = 10;
+        $bld_data->{"$planet"}->{"$bldid"}->{reserve} = $reserve;
       }
     }
   }
