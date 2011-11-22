@@ -12,15 +12,18 @@ use Getopt::Long qw(GetOptions);
 use Date::Parse;
 use Date::Format;
 use utf8;
+use Data::Dumper;
 
 my $probe_file = "data/probe_data_raw.js";
 my $cfg_file = "lacuna.yml";
 my $help    = 0;
+my $skip;
 
 GetOptions(
   'output=s' => \$probe_file,
   'config=s' => \$cfg_file,
   'help' => \$help,
+  'skip=s' => \$skip,
 );
   
   my $glc = Games::Lacuna::Client->new(
@@ -47,10 +50,13 @@ GetOptions(
   my $ttime   = ctime($stime);
   print "$ttime\n";
 
+print Dumper $planets;
 # Get obervatories;
   my @observatories;
   for my $pid (keys %$planets) {
+    next if $skip and $planets->{$pid} eq $skip;
 # Wrappper Needed
+    print "Finding observatory on $planets->{$pid}.\n";
     my $buildings = $glc->body(id => $pid)->get_buildings()->{buildings};
     push @observatories, grep { $buildings->{$_}->{url} eq '/observatory' } keys %$buildings;
   }

@@ -10,10 +10,12 @@ use Games::Lacuna::Client ();
 
 my $planet_name;
 my $cfg_file = "lacuna.yml";
+my $skip;
 
 GetOptions(
-    'planet=s' => \$planet_name,
-    'config=s' => \$cfg_file,
+    'planet=s'	=> \$planet_name,
+    'config=s'	=> \$cfg_file,
+    'skip=s'	=> \$skip,
 );
 
 unless ( $cfg_file and -e $cfg_file ) {
@@ -46,7 +48,8 @@ my %planets = map { $empire->{planets}{$_}, $_ } keys %{ $empire->{planets} };
 my $max_length;
 foreach my $name ( sort keys %planets ) {
 
-    next if defined $planet_name && $planet_name ne $name;
+    next if defined $planet_name && $name ne $planet_name;
+    next if defined $skip && lc $name  eq lc $skip;
 
     # Load planet data
     my $planet    = $client->body( id => $planets{$name} );
