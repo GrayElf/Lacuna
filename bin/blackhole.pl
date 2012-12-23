@@ -9,15 +9,18 @@ use Getopt::Long qw(GetOptions);
 use List::Util   qw( first );
 use Date::Parse;
 use Date::Format;
+<<<<<<< HEAD
 use YAML::XS;
+=======
+>>>>>>> lemming552/master
 use utf8;
 
   my %opts = (
     h          => 0,
     v          => 0,
     config     => "lacuna.yml",
-    datafile   => "data/data_blackhole.js",
-    maxdist    => 450,
+    datafile   => "log/blackhole.js",
+    maxdist    => 300,
   );
 
   my $ok = GetOptions(\%opts,
@@ -26,6 +29,12 @@ use utf8;
     'y=i',
     'id=i',
     'target=s',
+<<<<<<< HEAD
+=======
+    'zone=s',
+    'star_name=s',
+    'star_id=i',
+>>>>>>> lemming552/master
     'help|h',
     'datafile=s',
     'config=s',
@@ -33,7 +42,17 @@ use utf8;
     'make_planet',
     'increase_size',
     'change_type=i',
+<<<<<<< HEAD
     'view',
+=======
+    'swap_places',
+    'move_system',
+    'jump_zone',
+    'subsidize_cool',
+    'succeed',
+    'view',
+    'actions',
+>>>>>>> lemming552/master
   );
 
   unless ( $opts{config} and -e $opts{config} ) {
@@ -59,10 +78,17 @@ use utf8;
 
   my $target_id;
   my $params = {};
+<<<<<<< HEAD
   unless ($opts{view}) {
     if ($opts{change_type}) {
       if ($opts{change_type} < 1 or $opts{change_type} > 21) {
         print "New Type must be 1-21\n";
+=======
+  unless ($opts{view} or $opts{subsidize_cool}) {
+    if ($opts{change_type}) {
+      if ($opts{change_type} < 1 or $opts{change_type} > 41) {
+        print "New Type must be 1-41\n";
+>>>>>>> lemming552/master
         usage();
       }
       else {
@@ -70,14 +96,22 @@ use utf8;
         print "Changing to type $params->{newtype}\n";
       }
     }
+<<<<<<< HEAD
     usage() if !$opts{target} && !defined $opts{x} && !defined $opts{y} && !defined $opts{id};
+=======
+#    usage() if !$opts{target} && !defined $opts{x} && !defined $opts{y} && !defined $opts{id};
+>>>>>>> lemming552/master
 
     usage() if defined $opts{x} && !defined $opts{y};
     usage() if defined $opts{y} && !defined $opts{x};
   }
 
   my $ofh;
+<<<<<<< HEAD
   open($ofh, ">", $opts{datafile}) || die "Could not open $opts{datafile}";
+=======
+  open($ofh, ">", $opts{datafile}) || die "Could not create $opts{datafile}";
+>>>>>>> lemming552/master
 
   my $glc = Games::Lacuna::Client->new(
     cfg_file => $opts{config},
@@ -110,7 +144,11 @@ use utf8;
 
   my $target; my $target_name;
   my $bhg =  $glc->building( id => $bhg_id, type => 'BlackHoleGenerator' );
+<<<<<<< HEAD
   unless ($opts{view}) {
+=======
+  unless ($opts{view} or $opts{subsidize_cool}) {
+>>>>>>> lemming552/master
     if ( defined $opts{x} && defined $opts{y} ) {
       $target      = { x => $opts{x}, y => $opts{y} };
       $target_name = "$opts{x},$opts{y}";
@@ -123,6 +161,21 @@ use utf8;
       $target      = { body_id => $opts{id} };
       $target_name = $opts{id};
     }
+<<<<<<< HEAD
+=======
+    elsif ( defined $opts{zone} ) {
+      $target      = { zone => $opts{zone} };
+      $target_name = $opts{zone};
+    }
+    elsif ( defined $opts{star_name} ) {
+      $target      = { star_name => $opts{star_name} };
+      $target_name = $opts{star_name};
+    }
+    elsif ( defined $opts{star_id} ) {
+      $target      = { star_id => $opts{star_id} };
+      $target_name = $opts{star_id};
+    }
+>>>>>>> lemming552/master
     else {
       die "target arguments missing\n";
     }
@@ -132,6 +185,12 @@ use utf8;
     if ($opts{view}) {
       print "Viewing BHG: $bhg_id\n";
     }
+<<<<<<< HEAD
+=======
+    elsif ($opts{subsidize_cool}) {
+      print "Subsizing Cooldown: $bhg_id\n";
+    }
+>>>>>>> lemming552/master
     else {
       print "Targetting $target_name with $bhg_id\n";
     }
@@ -144,6 +203,7 @@ use utf8;
   if ($opts{view}) {
     $bhg_out = $bhg->view();
   }
+<<<<<<< HEAD
   elsif ($opts{make_planet}) {
     $bhg_out = $bhg->generate_singularity($target, "Make Planet");
   }
@@ -158,12 +218,58 @@ use utf8;
   }
   else {
     die "Nothing to do!\n";
+=======
+  elsif ($opts{subsidize_cool}) {
+    $bhg_out = $bhg->subsidize_cooldown();
+  }
+  elsif ($opts{actions}) {
+    $bhg_out = $bhg->get_actions_for($target);
+  }
+  else {
+    my $args = {};
+    if ($opts{make_planet}) {
+      $args->{task_name} = "Make Planet";
+    }
+    elsif ($opts{make_asteroid}) {
+      $args->{task_name} = "Make Asteroid";
+    }
+    elsif ($opts{increase_size}) {
+      $args->{task_name} = "Increase Size";
+    }
+    elsif ($opts{change_type}) {
+      $args->{task_name} = "Change Type";
+      $args->{params} = $params;
+    }
+    elsif ($opts{swap_places}) {
+      $args->{task_name} = "Swap Places";
+    }
+    elsif ($opts{jump_zone}) {
+      $args->{task_name} = "Jump Zone";
+    }
+    elsif ($opts{move_system}) {
+      $args->{task_name} = "Move System";
+    }
+    else {
+      die "Nothing to do!\n";
+    }
+    if ($opts{succeed}) {
+      $args->{subsidize} = 1;
+    }
+    $args->{target} = $target;
+    $args->{session_id} = $glc->{session_id};
+    $args->{building_id} = $bhg_id;
+    $bhg_out = $bhg->generate_singularity($args);
+>>>>>>> lemming552/master
   }
 
   print $ofh $json->pretty->canonical->encode($bhg_out);
   close($ofh);
 
+<<<<<<< HEAD
   if ($opts{view}) {
+=======
+  if ($opts{view} or $opts{actions} or $opts{subsidize_cool}) {
+>>>>>>> lemming552/master
     print $json->pretty->canonical->encode($bhg_out->{tasks});
   }
   else {
@@ -202,8 +308,29 @@ sub load_stars {
 sub usage {
   die <<"END_USAGE";
 Usage: $0 CONFIG_FILE
+<<<<<<< HEAD
        --planet PLANET_NAME
        --CONFIG_FILE  defaults to lacuna.yml
+=======
+       --planet         PLANET_NAME
+       --CONFIG_FILE    defaults to lacuna.yml
+       --x              X coordinate of target
+       --y              Y coordinate of target
+       --id             id of target
+       --target         target name of target (note you only need one of the 3 methods)
+       --help|h         This help message
+       --datafile       Output file, default data/data_blackhole.js
+       --config         Lacuna Config, default lacuna.yml
+       --make_asteroid  make an asteroid of target, only use against uninhabited planets
+       --make_planet    make a planet of asteroid, only use against non-mined asteroids
+       --increase_size  Increase size of habitable planet or asteroid
+       --change_type    Change type of habitable planet
+       --swap_places    Swap planet with targetted body
+       --view           View options
+       --actions        View statistics for possible actions with designated target
+       --subsidize_cool Subsidize Cooldown of BHG costing 2e, but allowing immediate reuse.
+       --succeed        Automatically succeed.  Use --actions for E cost.
+>>>>>>> lemming552/master
 
 END_USAGE
 

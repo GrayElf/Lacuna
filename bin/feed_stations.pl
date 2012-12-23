@@ -41,7 +41,7 @@ use utf8;
   
   my $glc = Games::Lacuna::Client->new(
     cfg_file => $opts{config},
-    rpc_sleep => 2,
+    rpc_sleep => 1,
 #    prompt_captcha => 1,
 #    debug    => 1,
   );
@@ -72,6 +72,7 @@ use utf8;
     $ok = eval {
       $trade = $glc->building( type => 'Trade', id => $fdata->{"$pname"}->{tmid})->get_stored_resources();
     };
+    print "RPC count: $glc->{rpc_count}\n";
     unless ( $ok ) {
       my $error = $@;
       print $df $error, "\n";
@@ -135,6 +136,10 @@ use utf8;
           $response = $@;
           print "Error sending $ship->{name}:$ship->{id} to $stations->{$stid}->{name}\n";
           print "Error: $response\n";
+          if ($response =~ /Slow down/) {
+            print "Taking a break\n";
+            sleep 60;
+          }
         }
         if (need_more($stations->{$stid}) ) {
           $loop = 1;
@@ -147,8 +152,10 @@ use utf8;
     $dump_report->{"$pname"}->{ships} = $results;
     $dump_report->{"$pname"}->{supply} = $supply;
   }
+  print "RPC count end: $glc->{rpc_count}\n";;
   print $df $json->pretty->canonical->encode($dump_report);
   close($df);
+  undef $glc;
 exit;
 
 sub update_inv {
@@ -194,52 +201,69 @@ sub load_ship {
   my ($ship, $supply, $station) = @_;
 
   my @base_types = qw(food ore water energy);
-  my %needs; my $sum = 0; my $t;
-  for $t (@base_types) {
-    my $need_cap = $station->{"$t\_capacity"};
-    my $need_has = $station->{"$t\_stored"};
-    if ( $need_has > $need_cap ) {
-      $needs{$t} = 0;
+  my @ntypes = @base_types;
+  my %needs;
+  my %carry = (
+    food => 0, ore => 0, water => 0, energy => 0,
+  );
+  my $carry_sum = 0;
+  my $extra_space = 0;
+  my $t;
+  while (scalar @ntypes and $carry_sum < ($ship->{cap} - 4)) {
+    my $portion = int(($ship->{cap} - $carry_sum)/(scalar @ntypes));
+    my @tmp_types = @ntypes;
+    @ntypes = ();
+    for $t (@tmp_types) {
+      my $need_cap = $station->{"$t\_capacity"};
+      my $need_has = $station->{"$t\_stored"};
+      if ( $need_has >= $need_cap ) {
+        $needs{$t} = 0;
+        $carry{$t} = 0;
+      }
+      else {
+        $needs{$t} = $need_cap - $need_has;
+        $carry{$t} += ($needs{$t} > $portion) ? $portion : $needs{$t};
+        $carry{$t} = $needs{$t} if ($carry{$t} > $needs{$t});
+        if ($carry{$t} < $needs{$t}) {
+          push @ntypes, $t;
+        }
+      }
     }
-    else {
-      $needs{$t} = $need_cap - $need_has;
-      $sum += $needs{$t};
-    }
-  }
-  if ($sum > $ship->{cap}) {
-    print "$station->{name} wants $sum, $ship->{name} can only carry $ship->{cap}.\n";
-    my $partial = int($ship->{cap}/5);
-    my $new_sum = 0;
+    $carry_sum = 0;
     for $t (@base_types) {
-      next if $t eq "energy";
-      $needs{$t} = $partial if ($partial < $needs{$t});
-      $new_sum += $needs{$t};
+      $carry_sum += $carry{$t};
     }
-    if ($partial * 2 < $needs{energy}) {
-      $needs{energy} = $ship->{cap} - $new_sum;
-    }
+#    printf "F: %6d; O: %6d; W: %6d; E: %6d = T: %6d Need: %d\n",
+#           $carry{food}, $carry{ore},
+#           $carry{water}, $carry{energy},
+#           $carry_sum, scalar @ntypes;
   }
+
   my $send = {};
-  $send->{water} = $supply->{water} > $needs{water} ?
-                   $needs{water} : $supply->{water};
-  $send->{energy} = $supply->{energy} > $needs{energy} ?
-                    $needs{energy} : $supply->{energy};
+  $send->{water} = $supply->{water} > $carry{water} ?
+                   $carry{water} : $supply->{water};
+  $send->{energy} = $supply->{energy} > $carry{energy} ?
+                    $carry{energy} : $supply->{energy};
 
   my @foods = food_types();
   my @ores  = ore_types();
   my $food_total = total_of(\@foods, $supply);
   my $ore_total  = total_of(\@ores,  $supply);
 
-  for my $food (@foods) {
-    my $sfood = int($needs{food} * $supply->{$food}/$food_total);
-    if ($sfood > 100) {
-      $send->{$food} = $sfood;
+  if ($food_total) {
+    for my $food (@foods) {
+      my $sfood = int($carry{food} * $supply->{$food}/$food_total);
+      if ($sfood > 100) {
+        $send->{$food} = $sfood;
+      }
     }
   }
-  for my $ore (@ores) {
-    my $sore = int($needs{ore} * $supply->{$ore}/$ore_total);
-    if ($sore > 100) {
-      $send->{$ore} = $sore;
+  if ($ore_total) {
+    for my $ore (@ores) {
+      my $sore = int($carry{ore} * $supply->{$ore}/$ore_total);
+      if ($sore > 100) {
+        $send->{$ore} = $sore;
+      }
     }
   }
 
@@ -302,8 +326,10 @@ sub load_station {
   };
   unless ( $ok ) {
     my $error = $@;
-    warn "Failed getting data on $station->{id}:$station->{name} due to $error\n";
-    return 0;
+    print "Failed getting data on $station->{id}:$station->{name} due to $error\n";
+    my %body_stats;
+    $body_stats{done} = 1;
+    return \%body_stats;
   }
   my %body_stats = %{$stat_stat->{status}->{body}};
   $body_stats{done} = 0;
